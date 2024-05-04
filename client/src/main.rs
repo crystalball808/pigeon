@@ -16,17 +16,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut input_reader = BufReader::new(io::stdin());
     let mut input_buffer = String::new();
 
-    writer.write_all(b"fuck you").await?;
-
     loop {
-        // send message
-        input_reader.read_line(&mut input_buffer).await?;
-        writer.write_all(input_buffer.as_bytes()).await?;
-        input_buffer.clear();
-
-        // receive message
-        buf_reader.read_line(&mut buffer).await?;
-        println!("message - {buffer}");
-        buffer.clear();
+        tokio::select! {
+            // send message
+            result = input_reader.read_line(&mut input_buffer) => {
+                let bytes_read = result?;
+                if bytes_read == 0 {
+                    continue
+                }
+                writer.write_all(input_buffer.as_bytes()).await?;
+                input_buffer.clear();
+            }
+            // print received message
+            result = buf_reader.read_line(&mut buffer) => {
+                let bytes_read = result?;
+                if bytes_read == 0 {
+                    continue
+                }
+                println!("message - {buffer}");
+                buffer.clear();
+            }
+        }
     }
 }
