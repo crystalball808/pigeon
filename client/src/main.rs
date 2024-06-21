@@ -66,6 +66,12 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
             }
             match key.code {
                 KeyCode::Esc => return Ok(()),
+                KeyCode::Char(c) => {
+                    app.input_value.push(c);
+                }
+                KeyCode::Backspace => {
+                    app.input_value.pop();
+                }
                 _ => {}
             }
         }
