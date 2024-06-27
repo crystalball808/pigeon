@@ -7,28 +7,32 @@ use ratatui::{
     backend::{Backend, CrosstermBackend},
     Terminal,
 };
-use std::{error::Error, io};
+use std::{error::Error, io, time::Duration};
+use tokio::{
+    sync::mpsc::{self, Receiver},
+    time::sleep,
+};
 
 mod app;
 mod ui;
 
-use app::App;
+use app::{App, Message};
 use ui::ui;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // let (tx, mut rx) = mpsc::channel(32);
-    // tokio::spawn(async move {
-    //     for i in 1..10 {
-    //         tx.send(format!("This is the message number {}", i))
-    //             .await
-    //             .unwrap();
-    //     }
-    // });
-    //
-    // while let Some(message) = rx.recv().await {
-    //     println!("{message}");
-    // }
+    let (tx, rx) = mpsc::channel(32);
+    tokio::spawn(async move {
+        for i in 1..10 {
+            tx.send(Message {
+                author_name: "Josh".to_owned(),
+                content: format!("This is my message number {i}"),
+            })
+            .await
+            .unwrap();
+            sleep(Duration::from_secs(2)).await;
+        }
+    });
 
     // terminal setup
     enable_raw_mode()?;
@@ -41,7 +45,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // create app and run in
     let mut app = App::with_mock();
-    let _res = run_app(&mut terminal, &mut app);
+
+    let _res = run_app(&mut terminal, &mut app, rx).await;
 
     // restore terminal
     disable_raw_mode()?;
@@ -54,24 +59,34 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+
+async fn run_app<B: Backend>(
+    terminal: &mut Terminal<B>,
+    app: &mut App,
+    mut receiver: Receiver<Message>,
+) -> io::Result<()> {
     loop {
+        if let Ok(message) = receiver.try_recv() {
+            app.messages.push(message)
+        }
         // draw ui
         terminal.draw(|frame| ui(frame, app))?;
 
-        if let Event::Key(key) = event::read()? {
-            if key.kind == event::KeyEventKind::Release {
-                continue;
-            }
-            match key.code {
-                KeyCode::Esc => return Ok(()),
-                KeyCode::Char(c) => {
-                    app.input_value.push(c);
+        if let Ok(true) = event::poll(Duration::ZERO) {
+            if let Event::Key(key) = event::read()? {
+                if key.kind == event::KeyEventKind::Release {
+                    continue;
                 }
-                KeyCode::Backspace => {
-                    app.input_value.pop();
+                match key.code {
+                    KeyCode::Esc => return Ok(()),
+                    KeyCode::Char(c) => {
+                        app.input_value.push(c);
+                    }
+                    KeyCode::Backspace => {
+                        app.input_value.pop();
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
     }
