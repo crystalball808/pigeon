@@ -11,7 +11,7 @@ async fn main() {
     let (tx, _rx) = broadcast::channel(10);
 
     loop {
-        let (mut socke, address) = listener.accept().await.unwrap();
+        let (mut socket, address) = listener.accept().await.unwrap();
         println!("new socket connected: {address}");
 
         let tx = tx.clone();

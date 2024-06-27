@@ -9,8 +9,9 @@ use ratatui::{
 };
 use std::{error::Error, io, time::Duration};
 use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    net::TcpStream,
     sync::mpsc::{self, Receiver},
-    time::sleep,
 };
 
 mod app;
@@ -23,14 +24,35 @@ use ui::ui;
 async fn main() -> Result<(), Box<dyn Error>> {
     let (tx, rx) = mpsc::channel(32);
     tokio::spawn(async move {
-        for i in 1..10 {
-            tx.send(Message {
-                author_name: "Josh".to_owned(),
-                content: format!("This is my message number {i}"),
-            })
-            .await
-            .unwrap();
-            sleep(Duration::from_secs(2)).await;
+        let mut stream = TcpStream::connect("localhost:8080").await.unwrap();
+        let (reader, mut writer) = stream.split();
+
+        let (reader, mut writer) = stream.split();
+
+        let mut buf_reader = BufReader::new(reader);
+        let mut buffer = String::new();
+
+        loop {
+            tokio::select! {
+                // send message
+                // result = input_reader.read_line(&mut input_buffer) => {
+                //     let bytes_read = result?;
+                //     if bytes_read == 0 {
+                //         continue
+                //     }
+                //     writer.write_all(input_buffer.as_bytes()).await?;
+                //     input_buffer.clear();
+                // }
+                // print received messageprint
+                result = buf_reader.read_line(&mut buffer) => {
+                    let bytes_read = result.unwrap();
+                    if bytes_read == 0 {
+                        continue
+                    }
+                    tx.send(Message { author_name: "Anon".to_owned(), content: buffer.clone()}).await.unwrap();
+                    buffer.clear();
+                }
+            }
         }
     });
 
