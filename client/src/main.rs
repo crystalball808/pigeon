@@ -1,4 +1,3 @@
-use app::App;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
@@ -6,15 +5,15 @@ use crossterm::{
 };
 use ratatui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-    Frame, Terminal,
+    Terminal,
 };
 use std::{error::Error, io};
 
 mod app;
+mod ui;
+
+use app::App;
+use ui::ui;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -76,34 +75,6 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
             }
         }
     }
-}
-
-fn ui(frame: &mut Frame, app: &mut App) {
-    let layout = Layout::new(
-        Direction::Vertical,
-        [Constraint::Min(1), Constraint::Length(3)],
-    )
-    .split(frame.size());
-
-    let messages_block = Block::default().borders(Borders::ALL).title("Chat");
-    let messages_list: Vec<ListItem> = app
-        .messages
-        .iter()
-        .map(|message| {
-            ListItem::new(Line::from(vec![
-                Span::styled(&message.author_name, Style::default().fg(Color::Green)),
-                ": ".into(),
-                Span::raw(&message.content),
-            ]))
-        })
-        .collect();
-
-    let input_block = Block::default().borders(Borders::ALL).title("Input");
-    let input_text = Paragraph::new(app.input_value.as_str()).block(input_block);
-    frame.render_widget(input_text, layout[1]);
-
-    let list = List::new(messages_list).block(messages_block);
-    frame.render_widget(list, layout[0])
 }
 
 // let mut stream = TcpStream::connect("localhost:8080").await?;
