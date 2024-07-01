@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Message {
     pub author_name: String,
     pub content: String,

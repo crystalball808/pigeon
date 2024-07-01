@@ -9,9 +9,9 @@ use ratatui::{
 };
 use std::{error::Error, io, time::Duration};
 use tokio::{
-    io::{AsyncBufReadExt, BufReader},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpStream,
-    sync::mpsc::{self, Receiver},
+    sync::mpsc::{self, Receiver, Sender},
 };
 
 mod app;
@@ -22,10 +22,10 @@ use ui::ui;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let (tx, rx) = mpsc::channel(32);
+    let (in_tx, in_rx) = mpsc::channel::<Message>(32);
+    let (out_tx, mut out_rx) = mpsc::channel::<Message>(32);
     tokio::spawn(async move {
         let mut stream = TcpStream::connect("localhost:8080").await.unwrap();
-        let (reader, mut writer) = stream.split();
 
         let (reader, mut writer) = stream.split();
 
@@ -34,22 +34,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         loop {
             tokio::select! {
-                // send message
-                // result = input_reader.read_line(&mut input_buffer) => {
-                //     let bytes_read = result?;
-                //     if bytes_read == 0 {
-                //         continue
-                //     }
-                //     writer.write_all(input_buffer.as_bytes()).await?;
-                //     input_buffer.clear();
-                // }
+                message = out_rx.recv() => {
+                    if let Some(message) = message {
+                        if let Err(error) = writer.write_all(message.content.as_bytes()).await { println!("{error}")};
+                    }
+                }
                 // print received messageprint
                 result = buf_reader.read_line(&mut buffer) => {
                     let bytes_read = result.unwrap();
                     if bytes_read == 0 {
                         continue
                     }
-                    tx.send(Message { author_name: "Anon".to_owned(), content: buffer.clone()}).await.unwrap();
+                    in_tx.send(Message { author_name: "Anon".to_owned(), content: buffer.clone()}).await.unwrap();
                     buffer.clear();
                 }
             }
@@ -68,7 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // create app and run in
     let mut app = App::with_mock();
 
-    let _res = run_app(&mut terminal, &mut app, rx).await;
+    let _res = run_app(&mut terminal, &mut app, in_rx, out_tx).await;
 
     // restore terminal
     disable_raw_mode()?;
@@ -86,6 +82,7 @@ async fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     app: &mut App,
     mut receiver: Receiver<Message>,
+    sender: Sender<Message>,
 ) -> io::Result<()> {
     loop {
         if let Ok(message) = receiver.try_recv() {
@@ -106,6 +103,17 @@ async fn run_app<B: Backend>(
                     }
                     KeyCode::Backspace => {
                         app.input_value.pop();
+                    }
+                    KeyCode::Enter => {
+                        if app.input_value.is_empty() == false {
+                            app.input_value.push_str("\n");
+                            let message = Message {
+                                author_name: "Client".to_owned(),
+                                content: app.input_value.clone(),
+                            };
+                            sender.send(message).await.unwrap();
+                            app.input_value.clear();
+                        }
                     }
                     _ => {}
                 }
