@@ -17,19 +17,18 @@ impl App {
         }
     }
 
-    pub fn with_mock() -> App {
-        App {
-            input_value: String::new(),
-            messages: vec![
-                Message {
-                    author_name: "Alfred".to_owned(),
-                    content: "Hi I'm Alfred".to_owned(),
-                },
-                Message {
-                    author_name: "Axel".to_owned(),
-                    content: "Hi Alfred".to_owned(),
-                },
-            ],
+    pub fn extract_message(&mut self) -> Option<Message> {
+        if self.input_value.is_empty() == false {
+            self.input_value.push_str("\n");
+            let message = Message {
+                author_name: "Client".to_owned(),
+                content: self.input_value.clone(),
+            };
+            self.input_value.clear();
+
+            return Some(message);
+        } else {
+            return None;
         }
     }
 }

@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run in
-    let mut app = App::with_mock();
+    let mut app = App::new();
 
     let _res = run_app(&mut terminal, &mut app, in_rx, out_tx).await;
 
@@ -105,14 +105,8 @@ async fn run_app<B: Backend>(
                         app.input_value.pop();
                     }
                     KeyCode::Enter => {
-                        if app.input_value.is_empty() == false {
-                            app.input_value.push_str("\n");
-                            let message = Message {
-                                author_name: "Client".to_owned(),
-                                content: app.input_value.clone(),
-                            };
+                        if let Some(message) = app.extract_message() {
                             sender.send(message).await.unwrap();
-                            app.input_value.clear();
                         }
                     }
                     _ => {}
