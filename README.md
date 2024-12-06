@@ -12,7 +12,6 @@ Pigeon is a terminal-based chat application.
 1. Launch a server module of the application
 ```shell
 cargo run --bin server
-ls
 ```
 2. In separate terminal windows, launch multiple instances of a client module
 ```shell
