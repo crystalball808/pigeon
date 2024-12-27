@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (in_tx, in_rx) = mpsc::channel::<Message>(32);
     let (out_tx, mut out_rx) = mpsc::channel::<Message>(32);
     tokio::spawn(async move {
-        let mut stream = TcpStream::connect("localhost:8080").await.unwrap();
+        let mut stream = TcpStream::connect("127.0.0.1:8080").await.unwrap();
 
         let (reader, mut writer) = stream.split();
 
